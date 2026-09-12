@@ -6,8 +6,8 @@ app = Flask(__name__)
 CORS(app)
 
 
-@app.route("/")
-def index():
+@app.route("/health")
+def health():
     return jsonify({"message": "API is running"})
 
 
