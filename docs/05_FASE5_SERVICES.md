@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 class AuthService:
-    VALID_ROOM_CODES = {"TRAINING01", "TRAINING02", "DEMO2024"}
+    VALID_ROOM_CODES = {"TRAINING01", "TRAINING02", "DEMO001"}
 
     def __init__(self):
         self.user_repo = UserRepository()
@@ -107,22 +107,22 @@ class AuthService:
 
     def login(
         self,
-        unique_id: str,
+        userId: str,
         password: str,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
     ) -> Tuple[User, Dict[str, Any]]:
-        user = self.user_repo.get_by_unique_id(unique_id)
+        user = self.user_repo.get_by_id(userId)
         if not user:
-            logger.warning(f"Login attempt for non-existent user: {unique_id}")
+            logger.warning(f"Login attempt for non-existent user: {userId}")
             raise InvalidCredentialsError("Invalid credentials")
 
         if not self.hash_util.verify_password(password, user.password_hash):
-            logger.warning(f"Invalid password for user: {unique_id}")
+            logger.warning(f"Invalid password for user: {userId}")
             raise InvalidCredentialsError("Invalid credentials")
 
         token_data = self._generate_token(user, ip_address, user_agent)
-        logger.info(f"User logged in: {unique_id}")
+        logger.info(f"User logged in: {userId}")
 
         return user, token_data
 
@@ -131,7 +131,7 @@ class AuthService:
         if not session:
             return False
 
-        session.is_active = False
+        session.status = 'EXPIRED'
         self.session_repo.save(session)
         logger.info(f"User logged out, session deactivated")
         return True
@@ -151,11 +151,11 @@ class AuthService:
             return None
 
         session = self.session_repo.get_by_token(token)
-        if not session or not session.is_active:
+        if not session or session.status == 'EXPIRED':
             return None
 
         if session.expires_at < datetime.utcnow():
-            session.is_active = False
+            session.status = 'EXPIRED'
             self.session_repo.save(session)
             return None
 
@@ -173,7 +173,6 @@ class AuthService:
 
         payload = {
             "user_id": user.id,
-            "unique_id": user.unique_id,
             "exp": expires_at,
             "iat": datetime.utcnow(),
         }
@@ -190,7 +189,7 @@ class AuthService:
             ip_address=ip_address,
             user_agent=user_agent,
             expires_at=expires_at,
-            is_active=True,
+            status='ACTIVE',
         )
 
         return {
@@ -323,7 +322,7 @@ class TransactionService:
     def transfer(
         self,
         sender: User,
-        recipient_unique_id: str,
+        toUserId: str,
         amount: Decimal,
         idempotency_key: str,
         description: Optional[str] = None,
@@ -339,11 +338,11 @@ class TransactionService:
         if amount.is_nan() or amount.is_infinite():
             raise InvalidAmountError("Invalid amount: NaN or infinite")
 
-        recipient_user = self.user_repo.get_by_unique_id(recipient_unique_id)
+        recipient_user = self.user_repo.get_by_id(toUserId)
         if not recipient_user:
-            raise RecipientNotFoundError(f"Recipient with ID {recipient_unique_id} not found")
+            raise RecipientNotFoundError(f"Recipient with ID {toUserId} not found")
 
-        if sender.unique_id == recipient_unique_id:
+        if sender.id == toUserId:
             raise InvalidAmountError("Cannot transfer to yourself")
 
         sender_account = self.account_repo.get_by_user_id(sender.id)
@@ -357,7 +356,7 @@ class TransactionService:
         sender_balance = self.transaction_repo.calculate_balance(sender_account.id)
         if sender_balance < amount:
             logger.warning(
-                f"Insufficient balance for user {sender.unique_id}: "
+                f"Insufficient balance for user {sender.id}: "
                 f"balance={sender_balance}, requested={amount}"
             )
             raise InsufficientBalanceError(
@@ -370,20 +369,21 @@ class TransactionService:
             type=TransactionType.SPEND,
             amount=amount,
             idempotency_key=spend_idempotency_key,
-            description=f"Transfer to {recipient_unique_id}" + (f": {description}" if description else ""),
+            relatedUserId=toUserId,
+            description=f"Transfer to {toUserId}" + (f": {description}" if description else ""),
         )
         logger.info(f"SPEND transaction created: {spend_transaction.id}")
 
-        income_idempotency_key = self.id_generator.generate_idempotency_key()
-        income_transaction = self.transaction_repo.create(
+        request_idempotency_key = self.id_generator.generate_idempotency_key()
+        request_transaction = self.transaction_repo.create(
             account_id=recipient_account.id,
-            type=TransactionType.INCOME,
+            type=TransactionType.REQUEST,
             amount=amount,
-            idempotency_key=income_idempotency_key,
-            reference_id=spend_transaction.id,
-            description=f"Transfer from {sender.unique_id}" + (f": {description}" if description else ""),
+            idempotency_key=request_idempotency_key,
+            relatedUserId=sender.id,
+            description=f"Transfer request from {sender.id}" + (f": {description}" if description else ""),
         )
-        logger.info(f"INCOME transaction created: {income_transaction.id}")
+        logger.info(f"REQUEST transaction created (pending approval): {request_transaction.id}")
 
         sender_balance_after = self.transaction_repo.calculate_balance(sender_account.id)
         recipient_balance_after = self.transaction_repo.calculate_balance(recipient_account.id)
@@ -391,7 +391,7 @@ class TransactionService:
         return {
             "transaction_id": spend_transaction.id,
             "amount": str(amount),
-            "recipient_unique_id": recipient_unique_id,
+            "toUserId": toUserId,
             "sender_balance_after": str(sender_balance_after),
             "recipient_balance_after": str(recipient_balance_after),
             "status": "completed",
@@ -426,22 +426,22 @@ class ContactService:
         self.contact_repo = ContactRepository()
         self.user_repo = UserRepository()
 
-    def add_contact(self, owner: User, contact_unique_id: str) -> Dict[str, Any]:
-        if owner.unique_id == contact_unique_id:
+    def add_contact(self, owner: User, contactUserId: str) -> Dict[str, Any]:
+        if owner.id == contactUserId:
             raise CannotAddSelfAsContactError("Cannot add yourself as a contact")
 
-        contact_user = self.user_repo.get_by_unique_id(contact_unique_id)
+        contact_user = self.user_repo.get_by_id(contactUserId)
         if not contact_user:
-            raise ContactNotFoundError(f"User with ID {contact_unique_id} not found")
+            raise ContactNotFoundError(f"User with ID {contactUserId} not found")
 
         if self.contact_repo.exists_contact(owner.id, contact_user.id):
             raise ContactAlreadyExistsError("Contact already exists")
 
         contact = self.contact_repo.create(
-            owner_user_id=owner.id,
-            contact_user_id=contact_user.id,
+            ownerId=owner.id,
+            contactUserId=contact_user.id,
         )
-        logger.info(f"Contact added: {owner.unique_id} -> {contact_unique_id}")
+        logger.info(f"Contact added: {owner.id} -> {contactUserId}")
 
         return contact.to_dict()
 
@@ -497,8 +497,8 @@ __all__ = [
 |--------|-------------|
 | `validate_room_code(code)` | Valida código de sala |
 | `register(name, password, room_code, ...)` | Registra usuario + crea cuenta + INCOME inicial |
-| `login(unique_id, password, ...)` | Autentica usuario y genera JWT |
-| `logout(token)` | Desactiva sesión |
+| `login(userId, password, ...)` | Autentica usuario y genera JWT |
+| `logout(token)` | Desactiva sesión (status='EXPIRED') |
 | `verify_token(token)` | Verifica y retorna usuario del token |
 
 ### AccountService
@@ -512,12 +512,12 @@ __all__ = [
 | Método | Descripción |
 |--------|-------------|
 | `get_transactions(user, page, per_page, type)` | Lista transacciones con paginación |
-| `transfer(sender, recipient_id, amount, idempotency_key, ...)` | Transfiere saldo entre usuarios |
+| `transfer(sender, toUserId, amount, idempotency_key, ...)` | Transfiere saldo (crea SPEND + REQUEST pendiente) |
 
 ### ContactService
 | Método | Descripción |
 |--------|-------------|
-| `add_contact(owner, contact_unique_id)` | Agrega contacto |
+| `add_contact(owner, contactUserId)` | Agrega contacto |
 | `get_contacts(owner)` | Lista contactos del usuario |
 | `delete_contact(owner, contact_id)` | Elimina contacto |
 

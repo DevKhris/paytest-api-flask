@@ -396,7 +396,7 @@ Para propósito de desarrollo/pruebas:
 |--------|-------------|
 | `TRAINING01` | Sala de entrenamiento 1 |
 | `TRAINING02` | Sala de entrenamiento 2 |
-| `DEMO2024` | Sala de demostración |
+| `DEMO001` | Sala de demostración |
 
 ---
 

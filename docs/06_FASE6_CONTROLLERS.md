@@ -72,7 +72,7 @@ def login():
     data = login_schema.load(request.json)
 
     user, token_data = auth_service.login(
-        unique_id=data["unique_id"],
+        userId=data["userId"],
         password=data["password"],
         ip_address=request.remote_addr,
         user_agent=request.headers.get("User-Agent"),
@@ -187,7 +187,7 @@ def transfer():
 
     result = transaction_service.transfer(
         sender=user,
-        recipient_unique_id=data["recipient_unique_id"],
+        toUserId=data["toUserId"],
         amount=Decimal(str(data["amount"])),
         idempotency_key=data["idempotency_key"],
         description=data.get("description"),
@@ -233,7 +233,7 @@ def add_contact():
 
     contact_data = contact_service.add_contact(
         owner=user,
-        contact_unique_id=data["contact_unique_id"],
+        contactUserId=data["contactUserId"],
     )
     return jsonify(contact_data), 201
 

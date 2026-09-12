@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "flask-api-development": {
+      "source": "aj-geddes/useful-ai-prompts",
+      "sourceType": "github",
+      "skillPath": "skills/flask-api-development/SKILL.md",
+      "computedHash": "9e5213f9fa4bde4175b717ab679d5a46497bd9edfff6673724a05320c741c6a9"
+    }
+  }
+}

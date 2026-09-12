@@ -6,26 +6,25 @@
 ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
 │      User       │       │     Account     │       │   Transaction   │
 ├─────────────────┤       ├─────────────────┤       ├─────────────────┤
-│ id (PK, UUID)   │──1:1──│ id (PK, UUID)   │──1:N──│ id (PK, UUID)   │
-│ unique_id       │       │ user_id (FK)    │       │ account_id (FK) │
-│ name            │       │ created_at      │       │ type (ENUM)     │
-│ password_hash   │       └─────────────────┘       │ amount          │
-│ created_at      │                                 │ idempotency_key │
-└─────────────────┘                                 │ reference_id(FK)│
-        │                                           │ description     │
-        │ 1:N                                       │ created_at      │
-        ▼                                           └─────────────────┘
-┌─────────────────┐       ┌─────────────────┐               │
-│     Session     │       │     Contact     │               │
-├─────────────────┤       ├─────────────────┤               │
-│ id (PK, UUID)   │       │ id (PK, UUID)   │               │
-│ user_id (FK)    │       │ owner_user_id   │───────────────┘
-│ token           │       │ contact_user_id │ (FK)
+│ id (PK, 12 chr) │──1:1──│ id (PK, ACC_*) │──1:N──│ id (PK, TXN_*)  │
+│ name (max 50)   │       │ user_id (FK)    │       │ account_id (FK) │
+│ password_hash   │       │ created_at      │       │ type (ENUM)     │
+│ created_at      │       │ updated_at      │       │ amount          │
+│ updated_at      │       └─────────────────┘       │ idempotency_key │
+└─────────────────┘                                │ related_user_id │
+        │ 1:N                                       │ description     │
+        ▼                                           │ created_at      │
+┌─────────────────┐       ┌─────────────────┐       └─────────────────┘
+│     Session     │       │     Contact     │
+├─────────────────┤       ├─────────────────┤
+│ id (PK, UUID)   │       │ id (PK, UUID)   │
+│ user_id (FK)    │       │ owner_id        │
+│ token           │       │ contact_user_id │
 │ ip_address      │       │ created_at      │
 │ user_agent      │       └─────────────────┘
+│ status (ENUM)   │
 │ created_at      │
 │ expires_at      │
-│ is_active       │
 └─────────────────┘
 ```
 
@@ -37,11 +36,11 @@
 
 | Campo | Tipo | Constraints | Descripción |
 |-------|------|-------------|-------------|
-| `id` | VARCHAR(36) | PK | UUID como string |
-| `unique_id` | VARCHAR(12) | UNIQUE, NOT NULL, INDEX | ID público del usuario (ej: "A8LSIWVLGZ1Q") |
-| `name` | VARCHAR(100) | NOT NULL | Nombre completo |
+| `id` | VARCHAR(12) | PK | ID público del usuario (ej: "A8LSIWVLGZ1Q") |
+| `name` | VARCHAR(50) | NOT NULL | Nombre completo |
 | `password_hash` | VARCHAR(255) | NOT NULL | Hash bcrypt de contraseña |
-| `created_at` | DATETIME | NOT NULL, DEFAULT=now() | Timestamp de creación |
+| `created_at` | TIMESTAMP | NOT NULL, DEFAULT=CURRENT_TIMESTAMP | Timestamp de creación |
+| `updated_at` | TIMESTAMP | NOT NULL, DEFAULT=CURRENT_TIMESTAMP ON UPDATE | Timestamp de última actualización |
 
 ### Relaciones:
 - `account`: 1:1 con `Account` (back_populates="user")
@@ -49,8 +48,8 @@
 - `contacts`: 1:N con `Contact` donde es owner (back_populates="owner")
 
 ### Índices:
-- `unique_id` (único)
-- `created_at`
+- `id` (único)
+- `idx_users_name` en `name`
 
 ---
 
@@ -60,9 +59,10 @@
 
 | Campo | Tipo | Constraints | Descripción |
 |-------|------|-------------|-------------|
-| `id` | VARCHAR(36) | PK | UUID como string |
-| `user_id` | VARCHAR(36) | FK → users.id, UNIQUE | Referencia al usuario |
-| `created_at` | DATETIME | NOT NULL, DEFAULT=now() | Timestamp de creación |
+| `id` | VARCHAR(16) | PK | Formato ACC_{nanoid} (ej: "ACC_a1b2c3d4e5f6") |
+| `user_id` | VARCHAR(12) | FK → users.id, UNIQUE | Referencia al usuario |
+| `created_at` | TIMESTAMP | NOT NULL, DEFAULT=CURRENT_TIMESTAMP | Timestamp de creación |
+| `updated_at` | TIMESTAMP | NOT NULL, DEFAULT=CURRENT_TIMESTAMP ON UPDATE | Timestamp de última actualización |
 
 ### Relaciones:
 - `user`: 1:1 con `User` (back_populates="account")
@@ -70,9 +70,9 @@
 
 ### Balance Calculado:
 ```python
-balance = SUM(INCOME transactions) - SUM(SPEND transactions)
+balance = Σ(INCOME amounts) - Σ(SPEND amounts) - Σ(REQUEST amounts)
 ```
-El balance se calcula dinámicamente consultando el historial de transacciones.
+El balance se calcula dinámicamente consultando el historial de transacciones. **NO se almacena en la tabla**.
 
 ### Restricciones:
 - Un usuario solo puede tener UNA cuenta
@@ -86,14 +86,14 @@ El balance se calcula dinámicamente consultando el historial de transacciones.
 
 | Campo | Tipo | Constraints | Descripción |
 |-------|------|-------------|-------------|
-| `id` | VARCHAR(36) | PK | UUID como string |
-| `account_id` | VARCHAR(36) | FK → accounts.id, NOT NULL, INDEX | Cuenta asociada |
-| `type` | ENUM(INCOME, SPEND, REQUEST) | NOT NULL | Tipo de transacción |
-| `amount` | NUMERIC(12,2) | NOT NULL | Monto (siempre positivo) |
-| `idempotency_key` | VARCHAR(64) | UNIQUE, NOT NULL, INDEX | Clave de idempotencia |
-| `reference_id` | VARCHAR(36) | FK → transactions.id, NULLABLE | Referencia a transacción relacionada |
+| `id` | VARCHAR(16) | PK | Formato TXN_{nanoid} (ej: "TXN_a1b2c3d4e5f6") |
+| `account_id` | VARCHAR(16) | FK → accounts.id, NOT NULL | Cuenta asociada |
+| `type` | ENUM('INCOME', 'SPEND', 'REQUEST') | NOT NULL | Tipo de transacción |
+| `amount` | DECIMAL(15,2) | NOT NULL | Monto (siempre positivo) |
+| `idempotency_key` | VARCHAR(64) | UNIQUE, NOT NULL | Clave de idempotencia |
+| `related_user_id` | VARCHAR(12) | NULLABLE | ID del usuario relacionado (ej: receptor en SPEND) |
 | `description` | VARCHAR(255) | NULLABLE | Descripción opcional |
-| `created_at` | DATETIME | NOT NULL, DEFAULT=now(), INDEX | Timestamp |
+| `created_at` | TIMESTAMP | NOT NULL, DEFAULT=CURRENT_TIMESTAMP | Timestamp |
 
 ### Enum: `TransactionType`
 ```python
@@ -105,18 +105,17 @@ class TransactionType(Enum):
 
 ### Relaciones:
 - `account`: N:1 con `Account` (back_populates="transactions")
-- `reference`: Self-referential para transacciones relacionadas (ej: transferencia)
 
 ### Índices:
-- `account_id`
-- `idempotency_key` (único)
-- `created_at`
-- `type`
+- `idx_transactions_account` en `account_id`
+- `idx_transactions_idem` UNIQUE en `idempotency_key`
+- `idx_transactions_type` en `type`
+- `idx_transactions_created` en `created_at`
 
 ### Validaciones de Negocio:
 - `amount` > 0
 - `amount` no puede ser NaN o infinito
-- `idempotency_key` debe ser único por cuenta
+- `idempotency_key` debe ser único globalmente
 
 ---
 
@@ -127,22 +126,24 @@ class TransactionType(Enum):
 | Campo | Tipo | Constraints | Descripción |
 |-------|------|-------------|-------------|
 | `id` | VARCHAR(36) | PK | UUID como string |
-| `owner_user_id` | VARCHAR(36) | FK → users.id, NOT NULL, INDEX | Usuario propietario |
-| `contact_user_id` | VARCHAR(36) | FK → users.id, NOT NULL, INDEX | Usuario de contacto |
-| `created_at` | DATETIME | NOT NULL, DEFAULT=now() | Timestamp |
+| `owner_id` | VARCHAR(12) | FK → users.id, NOT NULL | Usuario propietario |
+| `contact_user_id` | VARCHAR(12) | FK → users.id, NOT NULL | Usuario de contacto |
+| `created_at` | TIMESTAMP | NOT NULL, DEFAULT=CURRENT_TIMESTAMP | Timestamp |
 
 ### Relaciones:
-- `owner`: N:1 con `User` (foreign_key=owner_user_id, back_populates="contacts")
+- `owner`: N:1 con `User` (foreign_key=owner_id, back_populates="contacts")
 - `contact_user`: N:1 con `User` (foreign_key=contact_user_id, lazy="joined")
 
+**Nota:** El nombre del contacto se obtiene consultando `users` joined, **no se almacena**.
+
 ### Restricciones:
-- `UNIQUE(owner_user_id, contact_user_id)` - No duplicados
-- `owner_user_id != contact_user_id` - No auto-contactos
+- `UNIQUE unique_contact (owner_id, contact_user_id)` - No duplicados
+- `owner_id != contact_user_id` - No auto-contactos (validación en servicio)
 
 ### Índices:
-- `owner_user_id`
-- `contact_user_id`
-- `UNIQUE(owner_user_id, contact_user_id)`
+- `idx_contacts_owner` en `owner_id`
+- `idx_contacts_contact` en `contact_user_id`
+- `unique_contact` UNIQUE en `(owner_id, contact_user_id)`
 
 ---
 
@@ -153,13 +154,13 @@ class TransactionType(Enum):
 | Campo | Tipo | Constraints | Descripción |
 |-------|------|-------------|-------------|
 | `id` | VARCHAR(36) | PK | UUID como string |
-| `user_id` | VARCHAR(36) | FK → users.id, NOT NULL, INDEX | Usuario |
-| `token` | VARCHAR(512) | UNIQUE, NOT NULL, INDEX | JWT token |
+| `user_id` | VARCHAR(12) | FK → users.id, NOT NULL | Usuario |
+| `token` | VARCHAR(512) | UNIQUE, NOT NULL | JWT token |
 | `ip_address` | VARCHAR(45) | NULLABLE | IP del cliente (IPv4/IPv6) |
 | `user_agent` | VARCHAR(512) | NULLABLE | User-Agent del cliente |
-| `created_at` | DATETIME | NOT NULL, DEFAULT=now() | Inicio de sesión |
-| `expires_at` | DATETIME | NOT NULL | Expiración del token |
-| `is_active` | BOOLEAN | NOT NULL, DEFAULT=True | Estado de la sesión |
+| `status` | ENUM('ACTIVE', 'EXPIRED') | NOT NULL, DEFAULT='ACTIVE' | Estado de la sesión |
+| `created_at` | TIMESTAMP | NOT NULL, DEFAULT=CURRENT_TIMESTAMP | Inicio de sesión |
+| `expires_at` | TIMESTAMP | NOT NULL | Expiración del token |
 
 ### Metadatos de Rastreo:
 - `ip_address`: Para auditoría y seguridad
@@ -168,9 +169,9 @@ class TransactionType(Enum):
 - `expires_at`: Para invalidar sesiones
 
 ### Índices:
-- `user_id`
-- `token` (único)
-- `is_active`
+- `idx_sessions_token` UNIQUE en `token`
+- `idx_sessions_user` en `user_id`
+- `idx_sessions_expires` en `expires_at`
 
 ---
 
@@ -181,35 +182,34 @@ class TransactionType(Enum):
 ```python
 from datetime import datetime
 from app.extensions import db
-import uuid
 
 
 class User(db.Model):
     __tablename__ = "users"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    unique_id = db.Column(db.String(12), unique=True, nullable=False, index=True)
-    name = db.Column(db.String(100), nullable=False)
+    id = db.Column(db.String(12), primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     account = db.relationship("Account", back_populates="user", uselist=False)
     sessions = db.relationship("Session", back_populates="user")
     contacts = db.relationship(
         "Contact",
-        foreign_keys="Contact.owner_user_id",
+        foreign_keys="Contact.owner_id",
         back_populates="owner",
     )
 
     def __repr__(self):
-        return f"<User {self.unique_id}>"
+        return f"<User {self.id}>"
 
     def to_dict(self):
         return {
             "id": self.id,
-            "unique_id": self.unique_id,
             "name": self.name,
             "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
         }
 ```
 
@@ -220,15 +220,15 @@ from datetime import datetime
 from decimal import Decimal
 from sqlalchemy import func
 from app.extensions import db
-import uuid
 
 
 class Account(db.Model):
     __tablename__ = "accounts"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), unique=True, nullable=False)
+    id = db.Column(db.String(16), primary_key=True)
+    user_id = db.Column(db.String(12), db.ForeignKey("users.id"), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     user = db.relationship("User", back_populates="account")
     transactions = db.relationship("Transaction", back_populates="account")
@@ -251,7 +251,14 @@ class Account(db.Model):
             Transaction.type == TransactionType.SPEND
         ).scalar()
 
-        return Decimal(str(income)) - Decimal(str(spend))
+        request = db.session.query(
+            func.coalesce(func.sum(Transaction.amount), 0)
+        ).filter(
+            Transaction.account_id == self.id,
+            Transaction.type == TransactionType.REQUEST
+        ).scalar()
+
+        return Decimal(str(income)) - Decimal(str(spend)) - Decimal(str(request))
 
     def __repr__(self):
         return f"<Account {self.id}>"
@@ -262,6 +269,7 @@ class Account(db.Model):
             "user_id": self.user_id,
             "balance": str(self.balance),
             "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
         }
 ```
 
@@ -272,7 +280,6 @@ from datetime import datetime
 from decimal import Decimal
 import enum
 from app.extensions import db
-import uuid
 
 
 class TransactionType(enum.Enum):
@@ -284,17 +291,16 @@ class TransactionType(enum.Enum):
 class Transaction(db.Model):
     __tablename__ = "transactions"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    account_id = db.Column(db.String(36), db.ForeignKey("accounts.id"), nullable=False, index=True)
+    id = db.Column(db.String(16), primary_key=True)
+    account_id = db.Column(db.String(16), db.ForeignKey("accounts.id"), nullable=False, index=True)
     type = db.Column(db.Enum(TransactionType), nullable=False)
-    amount = db.Column(db.Numeric(precision=12, scale=2), nullable=False)
+    amount = db.Column(db.Numeric(precision=15, scale=2), nullable=False)
     idempotency_key = db.Column(db.String(64), unique=True, nullable=False, index=True)
-    reference_id = db.Column(db.String(36), db.ForeignKey("transactions.id"), nullable=True)
+    related_user_id = db.Column(db.String(12), nullable=True)
     description = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     account = db.relationship("Account", back_populates="transactions")
-    reference = db.relationship("Transaction", remote_side=[id], backref="related_transactions")
 
     def __repr__(self):
         return f"<Transaction {self.id} {self.type.value} {self.amount}>"
@@ -306,7 +312,7 @@ class Transaction(db.Model):
             "type": self.type.value,
             "amount": str(self.amount),
             "idempotency_key": self.idempotency_key,
-            "reference_id": self.reference_id,
+            "related_user_id": self.related_user_id,
             "description": self.description,
             "created_at": self.created_at.isoformat(),
         }
@@ -317,20 +323,19 @@ class Transaction(db.Model):
 ```python
 from datetime import datetime
 from app.extensions import db
-import uuid
 
 
 class Contact(db.Model):
     __tablename__ = "contacts"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    owner_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, index=True)
-    contact_user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, index=True)
+    id = db.Column(db.String(36), primary_key=True)
+    owner_id = db.Column(db.String(12), db.ForeignKey("users.id"), nullable=False, index=True)
+    contact_user_id = db.Column(db.String(12), db.ForeignKey("users.id"), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     owner = db.relationship(
         "User",
-        foreign_keys=[owner_user_id],
+        foreign_keys=[owner_id],
         back_populates="contacts",
     )
     contact_user = db.relationship(
@@ -340,7 +345,7 @@ class Contact(db.Model):
     )
 
     __table_args__ = (
-        db.UniqueConstraint("owner_user_id", "contact_user_id", name="uq_owner_contact"),
+        db.UniqueConstraint("owner_id", "contact_user_id", name="unique_contact"),
     )
 
     def __repr__(self):
@@ -349,11 +354,10 @@ class Contact(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "owner_user_id": self.owner_user_id,
+            "owner_id": self.owner_id,
             "contact_user_id": self.contact_user_id,
             "contact": {
                 "id": self.contact_user.id,
-                "unique_id": self.contact_user.unique_id,
                 "name": self.contact_user.name,
             } if self.contact_user else None,
             "created_at": self.created_at.isoformat(),
@@ -365,20 +369,19 @@ class Contact(db.Model):
 ```python
 from datetime import datetime
 from app.extensions import db
-import uuid
 
 
 class Session(db.Model):
     __tablename__ = "sessions"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, index=True)
+    id = db.Column(db.String(36), primary_key=True)
+    user_id = db.Column(db.String(12), db.ForeignKey("users.id"), nullable=False, index=True)
     token = db.Column(db.String(512), unique=True, nullable=False, index=True)
     ip_address = db.Column(db.String(45), nullable=True)
     user_agent = db.Column(db.String(512), nullable=True)
+    status = db.Column(db.String(20), default='ACTIVE', nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     user = db.relationship("User", back_populates="sessions")
 
@@ -389,11 +392,12 @@ class Session(db.Model):
         return {
             "id": self.id,
             "user_id": self.user_id,
+            "token": self.token,
             "ip_address": self.ip_address,
             "user_agent": self.user_agent,
+            "status": self.status,
             "created_at": self.created_at.isoformat(),
             "expires_at": self.expires_at.isoformat(),
-            "is_active": self.is_active,
         }
 ```
 
@@ -420,14 +424,18 @@ __all__ = ["User", "Account", "Transaction", "TransactionType", "Contact", "Sess
 | `app/models/account.py` | Modelo Account con balance dinámico |
 | `app/models/transaction.py` | Modelo Transaction con enum TransactionType |
 | `app/models/contact.py` | Modelo Contact con relaciones |
-| `app/models/session.py` | Modelo Session con metadata |
+| `app/models/session.py` | Modelo Session con status ENUM |
 
 ---
 
 ## 2.9 Notas de Implementación
 
-1. **UUIDs como strings:** Usar `str(uuid.uuid4())` para generar IDs legibles
-2. **Balance dinámico:** Se calcula en cada consulta, no se almacena
+1. **IDs alfanuméricos:** Usar `id` de 12 caracteres para User y `ACC_{nanoid}`/`TXN_{nanoid}` para Account/Transaction
+2. **Balance dinámico:** Se calcula en cada consulta desde transactions, NO se almacena
 3. **TransactionType enum:** Los valores se guardan como strings en DB
 4. **Lazy loading:** `contact_user` usa `lazy="joined"` para optimizar consultas de lista
 5. **Índices:** Crear índices en campos frecuentemente consultados
+6. **Contactos:** Usar snake_case (`owner_id`, `contact_user_id`) para nombres de columnas
+7. **Session status:** Usar `status` ENUM('ACTIVE', 'EXPIRED') en vez de `is_active` BOOLEAN
+8. **Timestamps:** Usar `created_at` y `updated_at` de forma consistente
+9. **Contact name:** Se obtiene consultando users joined, NO se almacena en contacts

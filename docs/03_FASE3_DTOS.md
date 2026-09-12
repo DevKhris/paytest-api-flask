@@ -60,7 +60,7 @@ class RegisterRequest(Schema):
 
 
 class LoginRequest(Schema):
-    unique_id = fields.String(
+    userId = fields.String(
         required=True,
         validate=validate.Length(min=12, max=12),
     )
@@ -78,7 +78,7 @@ from marshmallow import Schema, fields, validate, validates, ValidationError
 
 
 class TransferRequest(Schema):
-    recipient_unique_id = fields.String(
+    toUserId = fields.String(
         required=True,
         validate=validate.Length(min=12, max=12),
     )
@@ -116,7 +116,7 @@ from marshmallow import Schema, fields, validate
 
 
 class AddContactRequest(Schema):
-    contact_unique_id = fields.String(
+    contactUserId = fields.String(
         required=True,
         validate=validate.Length(min=12, max=12),
     )
@@ -158,10 +158,10 @@ from marshmallow import Schema, fields
 
 
 class UserResponse(Schema):
-    id = fields.String()
-    unique_id = fields.String()
+    userId = fields.String()
     name = fields.String()
     created_at = fields.DateTime(format="iso")
+    updatedAt = fields.DateTime(format="iso")
 
 
 class TokenResponse(Schema):
@@ -183,10 +183,11 @@ from marshmallow import Schema, fields
 
 
 class AccountResponse(Schema):
-    id = fields.String()
-    user_id = fields.String()
+    accountId = fields.String()
+    userId = fields.String()
     balance = fields.String()
     created_at = fields.DateTime(format="iso")
+    updatedAt = fields.DateTime(format="iso")
 
 
 class BalanceResponse(Schema):
@@ -202,11 +203,11 @@ from marshmallow import Schema, fields
 
 class TransactionResponse(Schema):
     id = fields.String()
-    account_id = fields.String()
+    accountId = fields.String()
     type = fields.String()
     amount = fields.String()
     idempotency_key = fields.String()
-    reference_id = fields.String(allow_none=True)
+    relatedUserId = fields.String(allow_none=True)
     description = fields.String(allow_none=True)
     created_at = fields.DateTime(format="iso")
 
@@ -225,14 +226,14 @@ from marshmallow import Schema, fields
 
 
 class ContactUserInfo(Schema):
-    id = fields.String()
-    unique_id = fields.String()
+    userId = fields.String()
     name = fields.String()
 
 
 class ContactResponse(Schema):
     id = fields.String()
-    contact_user_id = fields.String()
+    ownerId = fields.String()
+    contactUserId = fields.String()
     contact = fields.Nested(ContactUserInfo)
     created_at = fields.DateTime(format="iso")
 
@@ -277,23 +278,23 @@ def register():
 | DTO | Campos | Validaciones |
 |-----|--------|--------------|
 | `RoomCodeRequest` | room_code | length 4-10 |
-| `RegisterRequest` | name, password, room_code | name 2-100, password 6-128 |
-| `LoginRequest` | unique_id, password | unique_id exact 12 |
-| `TransferRequest` | recipient_unique_id, amount, idempotency_key, description | amount > 0, not NaN/inf |
-| `AddContactRequest` | contact_unique_id | unique_id exact 12 |
+| `RegisterRequest` | name, password, room_code | name 2-50, password 6-128 |
+| `LoginRequest` | userId, password | userId exact 12 |
+| `TransferRequest` | toUserId, amount, idempotency_key, description | amount > 0, not NaN/inf |
+| `AddContactRequest` | contactUserId | userId exact 12 |
 
 ### Response DTOs
 
 | DTO | Campos | Uso |
 |-----|--------|-----|
-| `UserResponse` | id, unique_id, name, created_at | Devolver datos de usuario |
+| `UserResponse` | userId, name, created_at, updatedAt | Devolver datos de usuario |
 | `TokenResponse` | access_token, token_type, expires_in | Devolver JWT |
 | `AuthResponse` | message, user, token | Respuesta completa de auth |
-| `AccountResponse` | id, user_id, balance, created_at | Datos de cuenta |
+| `AccountResponse` | accountId, userId, balance, created_at, updatedAt | Datos de cuenta |
 | `BalanceResponse` | balance, currency | Solo balance |
-| `TransactionResponse` | id, account_id, type, amount, ... | Una transacción |
+| `TransactionResponse` | id, accountId, type, amount, ... | Una transacción |
 | `TransactionListResponse` | transactions[], total, page, per_page | Lista paginada |
-| `ContactResponse` | id, contact_user_id, contact{}, created_at | Un contacto |
+| `ContactResponse` | id, ownerId, contactUserId, contact{}, created_at | Un contacto |
 | `ContactListResponse` | contacts[], total | Lista de contactos |
 
 ---
