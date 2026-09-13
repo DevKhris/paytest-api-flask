@@ -3,6 +3,7 @@ from decimal import Decimal
 import enum
 from app.extensions import db
 
+
 class TransactionType(enum.Enum):
     INCOME = "INCOME"
     SPEND = "SPEND"
@@ -12,17 +13,28 @@ class TransactionType(enum.Enum):
 class Transaction(db.Model):
     __tablename__ = "transactions"
 
-    id = db.Column(db.String(36), primary_key=True)
-    account_id = db.Column(db.String(36), db.ForeignKey("accounts.id"), nullable=False, index=True)
+    id = db.Column(db.String(16), primary_key=True)
+    account_id = db.Column(db.String(16), db.ForeignKey("accounts.id"), nullable=False, index=True)
     type = db.Column(db.Enum(TransactionType), nullable=False)
-    amount = db.Column(db.Numeric(precision=12, scale=2), nullable=False)
+    amount = db.Column(db.Numeric(precision=15, scale=2), nullable=False)
     idempotency_key = db.Column(db.String(64), unique=True, nullable=False, index=True)
-    reference_id = db.Column(db.String(36), db.ForeignKey("transactions.id"), nullable=True)
+    related_user_id = db.Column(db.String(12), nullable=True)
     description = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     account = db.relationship("Account", back_populates="transactions")
-    reference = db.relationship("Transaction", remote_side=[id], backref="related_transactions")
 
     def __repr__(self):
         return f"<Transaction {self.id} {self.type.value} {self.amount}>"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "account_id": self.account_id,
+            "type": self.type.value,
+            "amount": str(self.amount),
+            "idempotency_key": self.idempotency_key,
+            "related_user_id": self.related_user_id,
+            "description": self.description,
+            "created_at": self.created_at.isoformat(),
+        }
