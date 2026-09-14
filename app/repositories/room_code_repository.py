@@ -10,11 +10,7 @@ class RoomCodeRepository:
 
     def is_valid(self, code: str) -> bool:
         room_code = self.find_by_code(code)
-        if not room_code:
-            return False
-        if room_code.is_used:
-            return False
-        return True
+        return room_code is not None
 
     def mark_as_used(self, code: str) -> bool:
         room_code = self.find_by_code(code)

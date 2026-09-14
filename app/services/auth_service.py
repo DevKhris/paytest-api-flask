@@ -61,8 +61,6 @@ class AuthService:
         )
         logger.info(f"User registered: {unique_id}")
 
-        self.room_code_repo.mark_as_used(room_code)
-
         account = self.account_repo.create(user_id=user.id)
         logger.info(f"Account created for user: {unique_id}")
 
