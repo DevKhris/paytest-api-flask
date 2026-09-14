@@ -1,12 +1,12 @@
 import os
 import logging
 from dotenv import load_dotenv
-from flask import Flask, jsonify
-
-from app.config import config
-from app.extensions import db, migrate, cors
 
 load_dotenv()
+
+from flask import Flask, jsonify
+from app.config import config
+from app.extensions import db, migrate, cors
 
 
 def create_app(config_name="default"):
