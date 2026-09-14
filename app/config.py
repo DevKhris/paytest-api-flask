@@ -17,6 +17,9 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL"
     ) or "postgresql://postgres:postgres@localhost:5432/paytest_dev"
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "connect_args": {"sslmode": "require"} if os.environ.get("DATABASE_URL") else {}
+    }
 
 
 class TestingConfig(Config):
