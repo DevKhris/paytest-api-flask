@@ -2,6 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 import enum
 from app.extensions import db
+from app.utils.date_format import format_iso_datetime
 
 
 class TransactionType(enum.Enum):
@@ -36,5 +37,5 @@ class Transaction(db.Model):
             "idempotency_key": self.idempotency_key,
             "related_user_id": self.related_user_id,
             "description": self.description,
-            "created_at": self.created_at.isoformat(),
+            "created_at": format_iso_datetime(self.created_at),
         }

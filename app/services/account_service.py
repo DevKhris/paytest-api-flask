@@ -5,6 +5,7 @@ from app.models.user import User
 from app.repositories.account_repository import AccountRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.exceptions.business_exceptions import AccountNotFoundError
+from app.utils.date_format import format_iso_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -43,5 +44,5 @@ class AccountService:
             "id": account.id,
             "user_id": account.user_id,
             "balance": str(balance),
-            "created_at": account.created_at.isoformat(),
+            "created_at": format_iso_datetime(account.created_at),
         }

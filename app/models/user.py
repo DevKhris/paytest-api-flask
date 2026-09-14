@@ -1,5 +1,6 @@
 from datetime import datetime
 from app.extensions import db
+from app.utils.date_format import format_iso_datetime
 
 
 class User(db.Model):
@@ -26,6 +27,6 @@ class User(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
+            "created_at": format_iso_datetime(self.created_at),
+            "updated_at": format_iso_datetime(self.updated_at),
         }

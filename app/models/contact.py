@@ -1,5 +1,6 @@
 from datetime import datetime
 from app.extensions import db
+from app.utils.date_format import format_iso_datetime
 
 
 class Contact(db.Model):
@@ -37,5 +38,5 @@ class Contact(db.Model):
                 "id": self.contact_user.id,
                 "name": self.contact_user.name,
             } if self.contact_user else None,
-            "created_at": self.created_at.isoformat(),
+            "created_at": format_iso_datetime(self.created_at),
         }

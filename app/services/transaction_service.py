@@ -58,8 +58,20 @@ class TransactionService:
     ) -> Dict[str, Any]:
         existing = self.transaction_repo.get_by_idempotency_key(idempotency_key)
         if existing:
-            logger.warning(f"Duplicate transaction attempt: {idempotency_key}")
-            raise DuplicateTransactionError("Transaction already processed")
+            logger.info(f"Idempotent transaction returned: {idempotency_key}")
+            sender_account = self.account_repo.get_by_user_id(sender.id)
+            recipient_user = self.user_repo.get_by_id(toUserId)
+            recipient_account = self.account_repo.get_by_user_id(recipient_user.id) if recipient_user else None
+            sender_balance_after = self.transaction_repo.calculate_balance(sender_account.id) if sender_account else "0"
+            recipient_balance_after = self.transaction_repo.calculate_balance(recipient_account.id) if recipient_account else "0"
+            return {
+                "transaction_id": existing.id,
+                "amount": str(existing.amount),
+                "toUserId": toUserId,
+                "sender_balance_after": str(sender_balance_after),
+                "recipient_balance_after": str(recipient_balance_after),
+                "status": "completed",
+            }
 
         if amount <= 0:
             raise InvalidAmountError("Transfer amount must be greater than zero")

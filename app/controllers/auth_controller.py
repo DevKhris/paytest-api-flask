@@ -5,6 +5,7 @@ from app.services.auth_service import AuthService
 from app.dto.requests.auth_dto import RoomCodeRequest, RegisterRequest, LoginRequest
 from app.dto.responses.auth_response_dto import AuthResponse
 from app.utils.decorators import handle_exceptions, require_auth
+from app.utils.date_format import format_iso_datetime
 
 auth_bp = Blueprint("auth", __name__)
 auth_service = AuthService()
@@ -21,7 +22,7 @@ def _build_auth_response(message, user, token_data):
         "user": {
             "userId": user.id,
             "name": user.name,
-            "created_at": user.created_at.isoformat(),
+            "created_at": format_iso_datetime(user.created_at),
         },
         "token": token_data,
     })

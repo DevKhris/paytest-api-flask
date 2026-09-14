@@ -1,5 +1,6 @@
 from datetime import datetime
 from app.extensions import db
+from app.utils.date_format import format_iso_datetime
 
 
 class Session(db.Model):
@@ -27,6 +28,6 @@ class Session(db.Model):
             "ip_address": self.ip_address,
             "user_agent": self.user_agent,
             "status": self.status,
-            "created_at": self.created_at.isoformat(),
-            "expires_at": self.expires_at.isoformat(),
+            "created_at": format_iso_datetime(self.created_at),
+            "expires_at": format_iso_datetime(self.expires_at),
         }
