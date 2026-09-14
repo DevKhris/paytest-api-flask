@@ -2,6 +2,7 @@ import logging
 from decimal import Decimal
 from typing import Dict, Any, Optional
 
+from app.extensions import db
 from app.models.user import User
 from app.repositories.account_repository import AccountRepository
 from app.repositories.transaction_repository import TransactionRepository
@@ -104,27 +105,32 @@ class TransactionService:
                 f"Insufficient balance. Available: {sender_balance}, Requested: {amount}"
             )
 
-        spend_idempotency_key = self.id_generator.generate_idempotency_key()
-        spend_transaction = self.transaction_repo.create(
-            account_id=sender_account.id,
-            type=TransactionType.SPEND,
-            amount=amount,
-            idempotency_key=spend_idempotency_key,
-            related_user_id=toUserId,
-            description=f"Transfer to {toUserId}" + (f": {description}" if description else ""),
-        )
-        logger.info(f"SPEND transaction created: {spend_transaction.id}")
+        try:
+            spend_idempotency_key = self.id_generator.generate_idempotency_key()
+            spend_transaction = self.transaction_repo.create(
+                account_id=sender_account.id,
+                type=TransactionType.SPEND,
+                amount=amount,
+                idempotency_key=spend_idempotency_key,
+                related_user_id=toUserId,
+                description=f"Transfer to {toUserId}" + (f": {description}" if description else ""),
+            )
+            logger.info(f"SPEND transaction created: {spend_transaction.id}")
 
-        request_idempotency_key = self.id_generator.generate_idempotency_key()
-        request_transaction = self.transaction_repo.create(
-            account_id=recipient_account.id,
-            type=TransactionType.INCOME,
-            amount=amount,
-            idempotency_key=request_idempotency_key,
-            related_user_id=sender.id,
-            description=f"Transfer from {sender.id}" + (f": {description}" if description else ""),
-        )
-        logger.info(f"INCOME transaction created: {request_transaction.id}")
+            request_idempotency_key = self.id_generator.generate_idempotency_key()
+            request_transaction = self.transaction_repo.create(
+                account_id=recipient_account.id,
+                type=TransactionType.INCOME,
+                amount=amount,
+                idempotency_key=request_idempotency_key,
+                related_user_id=sender.id,
+                description=f"Transfer from {sender.id}" + (f": {description}" if description else ""),
+            )
+            logger.info(f"INCOME transaction created: {request_transaction.id}")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Transfer failed, rolled back: {str(e)}")
+            raise
 
         sender_balance_after = self.transaction_repo.calculate_balance(sender_account.id)
         recipient_balance_after = self.transaction_repo.calculate_balance(recipient_account.id)

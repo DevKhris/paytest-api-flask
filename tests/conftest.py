@@ -1,4 +1,5 @@
 import os
+import uuid
 import pytest
 from decimal import Decimal
 
@@ -15,8 +16,20 @@ def app():
 
     with app.app_context():
         db.create_all()
+        _seed_room_codes(db)
         yield app
         db.drop_all()
+
+
+def _seed_room_codes(db):
+    from app.models.room_code import RoomCode
+
+    valid_codes = ["TRAINING01", "TRAINING02", "TRAINING03"]
+    for code in valid_codes:
+        existing = RoomCode.query.filter_by(code=code).first()
+        if not existing:
+            db.session.add(RoomCode(code=code, is_used=False))
+    db.session.commit()
 
 
 @pytest.fixture(scope="function")
@@ -75,9 +88,13 @@ def sample_user(app, db_session):
 @pytest.fixture(scope="function")
 def sample_account(app, db_session, sample_user):
     from app.models.account import Account
+    from app.utils.id_generator import IDGenerator
 
     with app.app_context():
-        account = Account(user_id=sample_user.id)
+        account = Account(
+            id=IDGenerator().generate_idempotency_key()[:16],
+            user_id=sample_user.id,
+        )
         db_session.add(account)
         db_session.commit()
 
@@ -91,6 +108,7 @@ def sample_transaction(app, db_session, sample_account):
 
     with app.app_context():
         transaction = Transaction(
+            id=IDGenerator().generate_idempotency_key()[:16],
             account_id=sample_account.id,
             type=TransactionType.INCOME,
             amount=Decimal("500.00"),

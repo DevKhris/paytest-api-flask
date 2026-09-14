@@ -1,6 +1,13 @@
 import uuid
+import random
+import string
 from decimal import Decimal
 from datetime import datetime, timedelta
+
+
+def _generate_id(length: int) -> str:
+    chars = string.ascii_uppercase + string.digits
+    return "".join(random.choices(chars, k=length))
 
 
 class UserFactory:
@@ -13,7 +20,7 @@ class UserFactory:
         from app.models.user import User
 
         return User(
-            id=unique_id or f"{''.join(__import__('random').choices(__import__('string').ascii_uppercase + __import__('string').digits, k=12))}",
+            id=unique_id or _generate_id(12),
             name=name,
             password_hash=password_hash,
         )
@@ -25,7 +32,8 @@ class AccountFactory:
         from app.models.account import Account
 
         return Account(
-            user_id=user_id or str(uuid.uuid4())[:12],
+            id=_generate_id(16),
+            user_id=user_id or _generate_id(12),
         )
 
 
@@ -41,10 +49,11 @@ class TransactionFactory:
         from app.models.transaction import Transaction, TransactionType
 
         return Transaction(
-            account_id=account_id or str(uuid.uuid4())[:16],
+            id=_generate_id(16),
+            account_id=account_id or _generate_id(16),
             type=TransactionType[transaction_type],
             amount=amount,
-            idempotency_key=idempotency_key or str(uuid.uuid4()),
+            idempotency_key=idempotency_key or uuid.uuid4().hex,
             description=description,
         )
 
