@@ -49,14 +49,10 @@ class ContactService:
             "total": total,
         }
 
-    def delete_contact(self, owner: User, contact_id: str) -> bool:
-        contact = self.contact_repo.get_by_id(contact_id)
-        if not contact:
+    def delete_contact(self, owner: User, contactUserId: str) -> bool:
+        if not self.contact_repo.exists_contact(owner.id, contactUserId):
             raise ContactNotFoundError("Contact not found")
 
-        if contact.owner_id != owner.id:
-            raise ContactNotFoundError("Contact not found")
-
-        self.contact_repo.delete(contact)
-        logger.info(f"Contact deleted: {contact_id}")
+        self.contact_repo.delete_by_owner_and_contact(owner.id, contactUserId)
+        logger.info(f"Contact deleted: {owner.id} -> {contactUserId}")
         return True
