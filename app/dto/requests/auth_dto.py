@@ -31,5 +31,6 @@ class LoginRequest(Schema):
     )
     password = fields.String(
         required=True,
+        validate=validate.Length(min=1),
         load_only=True,
     )

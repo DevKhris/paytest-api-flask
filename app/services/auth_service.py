@@ -10,6 +10,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.account_repository import AccountRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.repositories.session_repository import SessionRepository
+from app.repositories.room_code_repository import RoomCodeRepository
 from app.utils.hash import HashUtil
 from app.utils.id_generator import IDGenerator
 from app.exceptions.business_exceptions import (
@@ -22,20 +23,19 @@ logger = logging.getLogger(__name__)
 
 
 class AuthService:
-    VALID_ROOM_CODES = {"TRAINING01", "TRAINING02", "DEMO001"}
-
     def __init__(self):
         self.user_repo = UserRepository()
         self.account_repo = AccountRepository()
         self.transaction_repo = TransactionRepository()
         self.session_repo = SessionRepository()
+        self.room_code_repo = RoomCodeRepository()
         self.hash_util = HashUtil()
         self.id_generator = IDGenerator()
 
     def validate_room_code(self, room_code: str) -> bool:
-        if room_code not in self.VALID_ROOM_CODES:
+        if not self.room_code_repo.is_valid(room_code):
             logger.warning(f"Invalid room code attempt: {room_code}")
-            raise RoomCodeInvalidError(f"Invalid room code: {room_code}")
+            raise RoomCodeInvalidError("Invalid room code")
         return True
 
     def register(
@@ -61,6 +61,8 @@ class AuthService:
         )
         logger.info(f"User registered: {unique_id}")
 
+        self.room_code_repo.mark_as_used(room_code)
+
         account = self.account_repo.create(user_id=user.id)
         logger.info(f"Account created for user: {unique_id}")
 
@@ -72,7 +74,7 @@ class AuthService:
             type=TransactionType.INCOME,
             amount=initial_amount,
             idempotency_key=idempotency_key,
-            description="Fondo inicial de bienvenida",
+            description="Saldo inicial de bienvenida",
         )
         logger.info(f"Initial transaction created: {transaction.id}, amount: {initial_amount}")
 

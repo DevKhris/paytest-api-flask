@@ -34,10 +34,10 @@ def add_contact():
     return jsonify(contact_data), 201
 
 
-@contact_bp.route("/<contact_user_id>", methods=["DELETE"])
+@contact_bp.route("/<contactUserId>", methods=["DELETE"])
 @require_auth
 @handle_exceptions
-def delete_contact(contact_user_id):
+def delete_contact(contactUserId):
     user = g.current_user
-    contact_service.delete_contact(owner=user, contactUserId=contact_user_id)
+    contact_service.delete_contact(owner=user, contactUserId=contactUserId)
     return jsonify({"message": "Contact deleted"}), 200
