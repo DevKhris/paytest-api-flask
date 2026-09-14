@@ -1,6 +1,6 @@
 import logging
 from decimal import Decimal
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from app.models.user import User
 from app.repositories.account_repository import AccountRepository
@@ -66,10 +66,10 @@ class TransactionService:
             recipient_balance_after = self.transaction_repo.calculate_balance(recipient_account.id) if recipient_account else "0"
             return {
                 "transaction_id": existing.id,
-                "amount": str(existing.amount),
+                "amount": f"{existing.amount:.2f}",
                 "toUserId": toUserId,
-                "sender_balance_after": str(sender_balance_after),
-                "recipient_balance_after": str(recipient_balance_after),
+                "sender_balance_after": f"{sender_balance_after:.2f}",
+                "recipient_balance_after": f"{recipient_balance_after:.2f}",
                 "status": "completed",
             }
 
@@ -131,9 +131,9 @@ class TransactionService:
 
         return {
             "transaction_id": spend_transaction.id,
-            "amount": str(amount),
+            "amount": f"{amount:.2f}",
             "toUserId": toUserId,
-            "sender_balance_after": str(sender_balance_after),
-            "recipient_balance_after": str(recipient_balance_after),
+            "sender_balance_after": f"{sender_balance_after:.2f}",
+            "recipient_balance_after": f"{recipient_balance_after:.2f}",
             "status": "completed",
         }

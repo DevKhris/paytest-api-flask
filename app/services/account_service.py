@@ -32,7 +32,7 @@ class AccountService:
         balance = self.transaction_repo.calculate_balance(account.id)
 
         return {
-            "balance": str(balance),
+            "balance": f"{balance:.2f}",
             "currency": "USD",
         }
 

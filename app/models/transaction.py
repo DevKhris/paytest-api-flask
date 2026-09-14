@@ -33,7 +33,7 @@ class Transaction(db.Model):
             "id": self.id,
             "account_id": self.account_id,
             "type": self.type.value,
-            "amount": str(self.amount),
+            "amount": f"{self.amount:.2f}",
             "idempotency_key": self.idempotency_key,
             "related_user_id": self.related_user_id,
             "description": self.description,
