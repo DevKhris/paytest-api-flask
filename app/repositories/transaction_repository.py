@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from decimal import Decimal
 from app.models.transaction import Transaction, TransactionType
 from app.repositories.base_repository import BaseRepository
