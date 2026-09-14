@@ -22,7 +22,6 @@ def _build_auth_response(message, user, token_data):
             "userId": user.id,
             "name": user.name,
             "created_at": user.created_at.isoformat(),
-            "updatedAt": user.updated_at.isoformat(),
         },
         "token": token_data,
     })

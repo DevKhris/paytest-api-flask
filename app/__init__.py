@@ -28,7 +28,7 @@ def configure_logging(app):
 def configure_extensions(app):
     db.init_app(app)
     migrate.init_app(app, db)
-    cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
+    cors.init_app(app, resources={r"/*": {"origins": "*"}})
 
 
 def configure_error_handlers(app):
@@ -56,7 +56,7 @@ def register_blueprints(app):
     from app.controllers.transaction_controller import transaction_bp
     from app.controllers.contact_controller import contact_bp
 
-    app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
-    app.register_blueprint(account_bp, url_prefix="/api/v1/accounts")
-    app.register_blueprint(transaction_bp, url_prefix="/api/v1/transactions")
-    app.register_blueprint(contact_bp, url_prefix="/api/v1/contacts")
+    app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(account_bp, url_prefix="/accounts")
+    app.register_blueprint(transaction_bp, url_prefix="/transactions")
+    app.register_blueprint(contact_bp, url_prefix="/contacts")

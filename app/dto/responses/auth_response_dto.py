@@ -5,7 +5,6 @@ class UserResponse(Schema):
     userId = fields.String()
     name = fields.String()
     created_at = fields.DateTime(format="iso")
-    updatedAt = fields.DateTime(format="iso")
 
 
 class TokenResponse(Schema):
