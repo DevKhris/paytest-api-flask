@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-secret-key-change-in-prod"
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or "jwt-secret-key-change-in-prod"
@@ -18,7 +19,7 @@ class DevelopmentConfig(Config):
         "DATABASE_URL"
     ) or "postgresql://postgres:postgres@localhost:5432/paytest_dev"
     SQLALCHEMY_ENGINE_OPTIONS = {
-        "connect_args": {"sslmode": "require"} if os.environ.get("DATABASE_URL") else {}
+        "connect_args": {"sslmode": "require"}
     }
 
 
@@ -33,6 +34,9 @@ class TestingConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "connect_args": {"sslmode": "require"}
+    }
 
     @classmethod
     def init_app(cls, app):
