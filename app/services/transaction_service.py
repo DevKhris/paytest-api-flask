@@ -109,13 +109,13 @@ class TransactionService:
         request_idempotency_key = self.id_generator.generate_idempotency_key()
         request_transaction = self.transaction_repo.create(
             account_id=recipient_account.id,
-            type=TransactionType.REQUEST,
+            type=TransactionType.INCOME,
             amount=amount,
             idempotency_key=request_idempotency_key,
             related_user_id=sender.id,
-            description=f"Transfer request from {sender.id}" + (f": {description}" if description else ""),
+            description=f"Transfer from {sender.id}" + (f": {description}" if description else ""),
         )
-        logger.info(f"REQUEST transaction created (pending approval): {request_transaction.id}")
+        logger.info(f"INCOME transaction created: {request_transaction.id}")
 
         sender_balance_after = self.transaction_repo.calculate_balance(sender_account.id)
         recipient_balance_after = self.transaction_repo.calculate_balance(recipient_account.id)
