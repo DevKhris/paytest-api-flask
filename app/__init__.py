@@ -1,3 +1,4 @@
+import os
 import logging
 from flask import Flask, jsonify
 
@@ -28,7 +29,10 @@ def configure_logging(app):
 def configure_extensions(app):
     db.init_app(app)
     migrate.init_app(app, db)
-    cors.init_app(app, resources={r"/*": {"origins": "*"}})
+
+    raw_origins = os.environ.get('CORS_ORIGINS', '')
+    origins = [o.strip() for o in raw_origins.split(',') if o.strip()] or ['http://localhost:3001']
+    cors.init_app(app, resources={r"/*": {"origins": origins}})
 
 
 def configure_error_handlers(app):
