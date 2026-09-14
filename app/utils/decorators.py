@@ -16,7 +16,7 @@ def handle_exceptions(f):
             return f(*args, **kwargs)
         except ValidationError as e:
             logger.warning(f"Validation error: {e.messages}")
-            return jsonify({"errors": e.messages}), 400
+            return jsonify({"error": str(e.messages)}), 400
         except BusinessError as e:
             logger.warning(f"Business error: {e}")
             return jsonify({"error": str(e)}), e.status_code

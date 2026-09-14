@@ -10,7 +10,6 @@ class TransferRequest(Schema):
     amount = fields.Decimal(
         required=True,
         places=2,
-        as_string=True,
     )
     idempotency_key = fields.String(
         required=True,
