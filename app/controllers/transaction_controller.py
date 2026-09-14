@@ -21,19 +21,11 @@ def get_transactions():
 
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
-    transaction_type = request.args.get("type", None, type=str)
-
-    if transaction_type:
-        try:
-            transaction_type = TransactionType(transaction_type)
-        except ValueError:
-            return jsonify({"error": "Invalid transaction type"}), 400
 
     transactions_data = transaction_service.get_transactions(
         user=user,
         page=page,
         per_page=per_page,
-        transaction_type=transaction_type,
     )
     return jsonify(transactions_data), 200
 

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List
 from decimal import Decimal
 from app.models.transaction import Transaction, TransactionType
 from app.repositories.base_repository import BaseRepository
@@ -20,12 +20,8 @@ class TransactionRepository(BaseRepository[Transaction]):
         account_id: str,
         page: int = 1,
         per_page: int = 20,
-        transaction_type: Optional[TransactionType] = None,
     ) -> tuple[List[Transaction], int]:
         query = self.model.query.filter_by(account_id=account_id)
-
-        if transaction_type:
-            query = query.filter_by(type=transaction_type)
 
         query = query.order_by(self.model.created_at.desc())
 

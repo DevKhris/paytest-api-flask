@@ -1,9 +1,8 @@
 import logging
 from decimal import Decimal
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from app.models.user import User
-from app.models.transaction import TransactionType
 from app.repositories.account_repository import AccountRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.repositories.user_repository import UserRepository
@@ -31,7 +30,6 @@ class TransactionService:
         user: User,
         page: int = 1,
         per_page: int = 20,
-        transaction_type: Optional[TransactionType] = None,
     ) -> Dict[str, Any]:
         account = self.account_repo.get_by_user_id(user.id)
         if not account:
@@ -41,7 +39,6 @@ class TransactionService:
             account_id=account.id,
             page=page,
             per_page=per_page,
-            transaction_type=transaction_type,
         )
 
         return {
